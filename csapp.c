@@ -1,3 +1,4 @@
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -72,12 +73,32 @@ float sum_elements(float a[], unsigned length) {
 
 int uadd_ok(unsigned x, unsigned y) {
     unsigned sum = x + y;
-    if (sum < x) return 0;
+    return sum >= x;
+}
+
+// add without overflow?
+int tadd_ok(int x, int y) {
+    int sum = x + y;
+    if ((sum < 0 && x > 0 && y > 0) || (sum >=0  && x < 0 && y < 0)) {
+        return 0;
+    }
     return 1;
 }
-int uadd_ok(unsigned x, unsigned y) {
-    unsigned sum = x + y;
-    return sum >= x;
+
+//multiply without overflow?
+int tmult_ok(int x, int y) {
+    int64_t prod = x * y;
+    return (int) x * y == prod;
+}
+
+int div16 (int x) {
+    int bias = (1 << 4) - 1;
+
+    int mask = x >> 31;
+
+    int applied_bias = bias & mask;
+
+    return (x + applied_bias) >> 4;
 }
 
 int main() {
@@ -151,8 +172,14 @@ int main() {
     // printf("ux = %u", ux);
     // show_bytes((byte_pointer) &ux, sizeof(unsigned));
 
-    float a[] = {1.0f, 2.0f};
-    printf("sum = %f", sum_elements(a, 0));
+    // float a[] = {1.0f, 2.0f};
+    // printf("sum = %f", sum_elements(a, 0));
+    //
+    //
+    //
+    float one = 1.0f;
+
+    printf("%f\n", one);
 
 
     return 0;
