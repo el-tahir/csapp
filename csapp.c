@@ -101,6 +101,16 @@ int div16 (int x) {
     return (x + applied_bias) >> 4;
 }
 
+void print_bits(float f) {
+    union { float f; unsigned int u; } x;
+    x.f = f;
+    for (int i = 31; i >= 0; i--) {
+        printf("%d", (x.u >> i) & 1);
+        if (i == 31 || i == 23) printf(" ");
+    }
+    printf("\n");
+}
+
 int main() {
     // int i = 12345;
     // float f = 12345.0f;
@@ -177,9 +187,8 @@ int main() {
     //
     //
     //
-    float one = 1.0f;
-
-    printf("%f\n", one);
+    print_bits(0.0f);
+    print_bits(-0.0f);
 
 
     return 0;
