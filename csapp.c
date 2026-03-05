@@ -41,6 +41,18 @@ void show_pointer(void* x) {
     show_bytes((byte_pointer) &x, sizeof(void*));
 }
 
+void show_short(short x) {
+    show_bytes((byte_pointer) &x, sizeof(short));
+}
+
+void show_long(long x) {
+    show_bytes((byte_pointer) &x, sizeof(long));
+}
+
+void show_double(double x) {
+    show_bytes((byte_pointer)&x, sizeof(double));
+}
+
 void inplace_swap(int* a, int* b) {
     *a = *a ^ *b;
     *b = *a ^ *b;
@@ -111,9 +123,22 @@ void print_bits(float f) {
     printf("\n");
 }
 
+int is_little_endian() {
+    int x = 1;
+    unsigned char* p_x = (unsigned char*)&x;
+    return p_x[0];
+}
+
+unsigned int lsb_x_rest_y(unsigned int x, unsigned int y) {
+
+    return (x & 0x000000FF) | (y & 0xFFFFFF00);
+}
+
 int main() {
     // int i = 12345;
+    //
     // float f = 12345.0f;
+    //
     // int *p = &i;
 
     // int arr[] = {1, 2, 3, 4, 5};
@@ -139,7 +164,6 @@ int main() {
     // printf("%.2x \n", (x & ~(0xff)) | 0xff);
 
     // printf("%d\n", !0);
-    //
 
     // unsigned int x = ~0;
     // printf("%032b\n", x >> 7);
@@ -185,11 +209,16 @@ int main() {
     // float a[] = {1.0f, 2.0f};
     // printf("sum = %f", sum_elements(a, 0));
     //
-    //
-    //
-    print_bits(0.0f);
-    print_bits(-0.0f);
+    // printf("%.23f\n", 0.1f + 0.2f);
 
+    // printf("%d\n", is_little_endian());
+    printf("%.2x\n", lsb_x_rest_y(0x89ABCDEF, 0x76543210));
+
+    // long l = 1L;
+    // show_long(l);
+
+    // double d = 1.0000;
+    // show_double(d);
 
     return 0;
 }
