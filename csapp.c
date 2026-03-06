@@ -131,8 +131,101 @@ int is_little_endian() {
 
 unsigned int lsb_x_rest_y(unsigned int x, unsigned int y) {
 
-    return (x & 0x000000FF) | (y & 0xFFFFFF00);
+    return (x & 0xFF) | (y & ~(0xFF));
 }
+
+unsigned int replace_byte(unsigned int x, int i, unsigned char b) {
+    return (x & ~(0xFFu << (i * 8))) | ((unsigned int)b << (i * 8));
+}
+
+
+int get_msb(int x) {
+    int shift_val = (sizeof(int) - 1) << 3;
+    int xright = x >> shift_val;
+    return xright & 0xFF;
+}
+
+// any bit of x equals 1
+int any_bit_equals_one(int x) {
+    return x != 0;
+}
+
+int any_bit_equals_zero(int x) {
+    return x != -1;
+}
+
+int any_bit_in_least_byte_equals_one(int x) {
+    return (x & 0xFF) != 0;
+}
+
+int any_bit_in_most_byte_equals_zero(int x) {
+    return ((x >> ((sizeof(int) - 1) << 3)) & 0xFF) != 0xFF;
+}
+
+int int_shifts_are_arithmetic() {
+    int x = -1;
+    return x >> 1 == x;
+}
+
+unsigned srl(unsigned x, int k) {
+    //perform shift arithmetically
+    unsigned xsra = (int) x >> k;
+    int w = 8 * sizeof(int);
+    unsigned mask = (1u << (w - k - 1));
+    mask = (mask << 1) - 1;
+
+    return xsra & mask;
+}
+
+int sra(int x, int k) {
+    //perform shift logically
+    int xsrl = (unsigned) x >> k;
+    int w = 8 * sizeof(int);
+
+    int msb_mask = 1 << (w - 1);
+    int sign_bit = x & msb_mask;
+    int sign_mask = !(sign_bit) - 1; //gives all ones if sign bit is 1, else 0
+    int mask = ~(1u << (w - k - 1));
+    mask =  (mask << 1) - 1;
+
+    return xsrl | (sign_mask & mask);
+
+}
+
+//return 1 when any odd bit of x equals 1 else 0, w = 32;
+int any_odd_one(unsigned x) {
+    return !!(0xAAAAAAAAu & x);
+}
+
+//return 1 when x contains an odd number of 1s else 0, w=32;
+int odd_ones(unsigned x) {
+    x ^= (x >> 16);
+    x ^= (x >> 8);
+    x ^= (x >> 4);
+    x ^= (x >> 2);
+    x ^= (x >> 1);
+    return x & 1;
+}
+
+//generate a mask indicating leftmost 1, w = 32
+// e.g. 0xFF00 -> 0x8000
+// if x == 0 return 0
+int leftmost_one(unsigned x) {
+    x |= (x >> 1);
+    x |= (x >> 2);
+    x |= (x >> 4);
+    x |= (x >> 8);
+    x |= (x >> 16);
+    return x - (x >> 1);
+}
+
+int rightmost_one(unsigned x) {
+    return x & -x;
+}
+
+
+
+
 
 int main() {
     // int i = 12345;
@@ -212,10 +305,13 @@ int main() {
     // printf("%.23f\n", 0.1f + 0.2f);
 
     // printf("%d\n", is_little_endian());
-    printf("%.2x\n", lsb_x_rest_y(0x89ABCDEF, 0x76543210));
-
+    // printf("%.2x\n", lsb_x_rest_y(0x89ABCDEF, 0x76543210));
+    // printf("%08x\n", replace_byte(0x12345678, 0, 0xAB));
     // long l = 1L;
     // show_long(l);
+    //
+    // printf("%lu", sizeof(int) );
+    printf("%.2x", leftmost_one(0xFF00));
 
     // double d = 1.0000;
     // show_double(d);
