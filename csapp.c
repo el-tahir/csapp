@@ -223,6 +223,84 @@ int rightmost_one(unsigned x) {
     return x & -x;
 }
 
+int int_size_is_32() {
+    // set msb of 32-bit machine
+    unsigned int set_msb = 1u << 31;
+    // shift past msb of 32-bit word
+    unsigned int beyond_msb = set_msb << 1;
+    // set_msb is nonero when word size is >= 32
+    // beyond_msb is zero when word size <= 32
+
+    return set_msb && !beyond_msb;
+}
+
+// mark least significant n bits set to 1
+int lower_one_mask(int n) {
+    return (2u << (n - 1)) - 1;
+}
+
+// do rotating left shift. assume 0 <= n < w
+unsigned rotate_left(unsigned x, int n) {
+    unsigned left_part = x << n;
+    unsigned right_part = (x >> 1) >> (31 - n);
+    return left_part | right_part;
+}
+
+// return 1 when x can be represented as n n-bit, twos complement else 0
+// assume 1 <= n <= w
+int fit_bits(int x, int n) {
+    int shift = 32 - n;
+    return ((int)((unsigned)x << shift) >> shift) == x;
+}
+
+// decleration of a data type where 4 bytes are packed into an unsigned
+typedef unsigned packed_t;
+
+// extract byte from word. return as signed integer
+int xbyte(packed_t word, int bytenum) {
+    unsigned byte = (word >> (bytenum << 3)) & 0xFF;
+    // extned to signed 32 int
+    return (int)(byte << 24) >> 24;
+}
+
+// copy integer into buffer is space is available
+void copy_int(int val, void* buf, int maxbytes) {
+    if (maxbytes >= 0 && (size_t)maxbytes >= sizeof(val)) {
+        memcpy(buf, (void*) &val, sizeof(val));
+    }
+}
+
+//addition that saturates to TMin or Tmax
+int saturating_add(int x, int y) {
+    int sum = (int)((unsigned) x + (unsigned) y);
+    int overflow_mask = (~(x ^ y) & (x ^ sum)) >> 31;
+    int sign_sum = sum >> 31;
+
+    int sat = (sign_sum & INT_MIN) | (~sign_sum & INT_MAX);
+
+    return (overflow_mask & sat) | (~overflow_mask & sum);
+}
+
+//determine whether arguments can be subtracted without overflow
+int tsub_ok(int x, int y) {
+    int sub = (int)((unsigned) x - (unsigned) y);
+    int overflow_mask = ((x ^ y) & (x ^ sub)) >> 31;
+    // are the signs bits different? and did the sign bit flip in the result?
+
+    return !overflow_mask;
+}
+
+int signed_high_prod(int x, int y);
+
+unsigned unsigned_high_prod(unsigned x, unsigned y) {
+    int high_prod = signed_high_prod((int)x, (int) y);
+    int x_msb = x >> 31;
+    int y_msb = y >> 31;
+    return high_prod + y * x_msb + x * y_msb;
+
+}
+
+
 
 
 
@@ -311,7 +389,7 @@ int main() {
     // show_long(l);
     //
     // printf("%lu", sizeof(int) );
-    printf("%.2x", leftmost_one(0xFF00));
+    // printf("%s",typeof(0));
 
     // double d = 1.0000;
     // show_double(d);
