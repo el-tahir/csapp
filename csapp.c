@@ -1,3 +1,4 @@
+#include <stdatomic.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -297,8 +298,120 @@ unsigned unsigned_high_prod(unsigned x, unsigned y) {
     int x_msb = x >> 31;
     int y_msb = y >> 31;
     return high_prod + y * x_msb + x * y_msb;
+}
+
+void* calloc(size_t nmemb, size_t size) {
+    if (nmemb == 0 || size == 0) return NULL;
+    if (size > SIZE_MAX / nmemb) return NULL;
+    size_t total = nmemb * size;
+    void* memory = malloc(total);
+    if (memory == NULL) return NULL;
+    memset(memory, 0, total);
+    return memory;
 
 }
+
+// 128, 64,32,16,8,4,2,1,
+
+// k = 17
+//     (x * 16) + x
+//     (x << 4) + x
+
+// k = -7
+//     x - (x * 8)
+//     x - (x << 3)
+
+// k = 60
+//     (x * 64) - (x * 4)
+//     (x << 6) - (x << 2)
+
+// k = -112
+//     (x * 16) - (x * 128)
+//     (x << 4) - (x << 7)
+
+
+//divide by power of 2. assume 0 <= k < w-1
+int divide_power2(int x, int k) {
+    int mask = x >> 31;
+    int bias = mask & ((1 << k) - 1);
+    return (x + bias) >> k;
+}
+
+// computes (3 * x) / 4
+int mul3div4(int x) {
+    int x3 = (x << 1) + x;
+
+    int mask = x3 >> 31;
+    int bias = mask & 3;
+    return (x3 + bias) >> 2;
+}
+
+// computes 3/4 x, rounded towards zero
+int threefourths(int x) {
+    int q = x >> 2;
+    int r = x & 3;
+    int q3 = q + q + q;
+    int r3 = r + r + r;
+
+    int bias = (x >> 31) & 3;
+    return q3 + ((r3 + bias) >> 2);
+}
+
+q: 1 ^ (w - k) 0 ^ k
+a : ~0 - ((1 << k) - 1)
+
+q : 0 ^ (w - k - j) 1 ^ k 0 ^ j
+a : (((1 << (k + j)) - 1) >> j) << j
+
+//create some arbitrary values
+int x = random();
+int y = random();
+
+//convert to unsigned
+unsigned ux = (unsigned) x;
+unsigned uy = (unsigned) uy;
+
+
+// returns 32-bit unsigned representation of float
+unsigned f2u(float x);
+
+int float_le(float x, float y) {
+
+    // assume neither are NaN, and +0 == -0
+
+    unsigned ux = f2u(x);
+    unsigned uy = f2u(y);
+
+    //get the sign bits
+    unsigned sx = ux >> 31;
+    unsigned sy = uy >> 31;
+
+
+    // if both positive, uy >= ux if uy - ux >= 0
+    // we check the sign bit of  uy - ux
+    unsigned pos_le = !((uy + ~ux + 1) >> 31);
+
+    //if both negative the bigger one is less, so ux - uy >= 0
+    unsigned neg_le = !((ux + ~uy + 1) >> 31);
+
+    //give an expression using only ux, uy, sx and sy
+    return
+    // x <= y if
+    // x and y are both 0
+    !((ux << 1) | (uy << 1)) ||
+    // x is negative and y is non-negative
+    (sx & !sy) ||
+    // both are negative
+    ((sx & sy & neg_le) ||
+    // both are positive
+    (!sx & !sy & pos_le));
+}
+
+
+
+
+
+
 
 
 
