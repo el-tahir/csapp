@@ -407,7 +407,214 @@ int float_le(float x, float y) {
     (!sx & !sy & pos_le));
 }
 
+// create some arbitrary values
+int x = random();
+int y = random();
+int z = random();
 
+// convert to double
+double dx = (double) x;
+double dy = (double) y;
+double dz = (double) z;
+
+A. (float) x == (float) dx
+    true, no information is lost when casting from int to double,
+    so the float casting is identical
+
+B. dx - dy == (double) (x - y)
+    false, x - y might underflow
+    but dx - dy will always be valid and there is plenty of room for precision
+
+C. (dx + dy) + dz == dx + (dy + dz)
+    true, plenty of room for precision
+
+D. (dx * dy) * dz == dx * (dy * dz)
+    false, precision is not large enough for multiplication
+    intermediate results will be rounded and floating point arithmetic is non-associative
+
+
+E. dx / dx == dz / dz
+ false, if one of them is zero we get NaN
+
+
+ // returns a floating-point value having an identical bit representation
+ // as its unsigned argument
+ float u2f(unsigned x);
+
+ float fpwr2(int x) {
+     //result expontent and fraction
+     unsigned exp, frac;
+     unsigned u;
+
+     if (x < -149) {
+         //too small, return 0.0
+         exp = 0;
+         frac = 0;
+     } else if (x < -126) {
+         //denormalized result
+         exp = 0;
+         frac = 1 << (x + 149);
+     } else if (x < 128) {
+         // normalized result
+         exp = x + 127;
+         frac = 0;
+     } else {
+         //too big, return +inf
+         exp = 0xFF;
+         frac = 0;
+     }
+
+     // pack exp and frac into 32 bits
+     u = exp << 23 | frac;
+     //return as float
+     return u2f(u);
+
+ }
+
+ typedef unsigned float_bits;
+
+ #define SIGN_MASK  0x80000000   // bit 31
+ #define EXP_MASK   0x7F800000   // bits 30-23
+ #define FRAC_MASK  0x007FFFFF   // bits 22-0
+ #define BIAS       127
+
+// compute -f, if f is NaN, then return f.
+float_bits float_negate(float_bits f) {
+    unsigned exp = (f & EXP_MASK) >> 23;
+    unsigned frac = f & FRAC_MASK;
+    unsigned sign = f >> 31;
+    if (exp == 0xFF && frac) {
+        return f;
+    }
+
+    sign ^= 1;
+
+    return (sign << 31) | (exp << 23) | frac;
+
+}
+
+
+// compute |f|. if f is NaN, then return f
+float_bits float_absval(float_bits f) {
+    unsigned exp = (f & EXP_MASK) >> 23;
+    unsigned frac = f & FRAC_MASK;
+    unsigned sign = f >> 31;
+    if (exp == 0xFF && frac) return f;
+
+    return f % ~SIGN_MASK;
+}
+
+// compute 2*f. if f is Nan, then return f
+float_bits float_twice(float_bits f) {
+    unsigned exp = (f & EXP_MASK) >> 23;
+    unsigned frac = f & FRAC_MASK;
+    unsigned sign = f >> 31;
+
+    if (exp == 0xFF) {
+        return f;
+    }
+    if (exp == 0) { // denormalized
+        frac <<= 1; // not sure what happens here if the (1/2) bit is set
+    } else { // normalized
+        exp += 1;
+        if (exp == 0xFF) frac = 0;
+    }
+
+    return (sign << 31) | (exp << 23) | frac;
+}
+
+// computes 0.5*f. if f is NaN, return f
+float_bits float_half(float_bits f) {
+    unsigned exp = (f & EXP_MASK) >> 23;
+    unsigned frac = f & FRAC_MASK;
+    unsigned sign = f >> 31;
+
+    if (exp == 0xFF) {
+        return f;
+    }
+
+
+    if (exp == 0) {
+        unsigned guard = frac & 1; // bit about to be lost
+        frac >>= 1;
+        frac += guard & (frac & 1);
+    } else if (exp == 1) { // normalized -> denormal transition
+        // value = 1.frac * 2^-126
+        // half = 0.1frac * 2^-126
+        // must restore the implicit 1 before shifting
+        unsigned full = (1 << 23) | frac;
+        unsigned guard = full & 1;
+        frac = full >> 1;
+        frac += guard & (frac & 1);
+        exp = 0;
+    } else {
+        exp -= 1;
+    }
+
+    return (sign << 31) | (exp << 23) | frac;
+
+}
+
+// compute (int) f. if overflow or f is NaN, return 0x80000000
+// round towards 0
+int float_f2i(float_bits f) {
+    int exp = (int) ((f & EXP_MASK) >> 23) - 127;
+    unsigned frac = f & FRAC_MASK;
+    unsigned sign = f >> 31;
+
+    if (exp < 0) {
+        return 0;
+    } else if (exp > 30) {
+        return 0x80000000;
+    } else {
+        unsigned significand = (1 << 23) | frac;
+        int result;
+        if (exp < 23) {
+            result = significand >> (23 - exp);
+        } else {
+            result =  significand << (exp - 23);
+        }
+        return sign ? -result : result;
+    }
+
+}
+
+// compute (float) i
+float_bits float_i2f(int i) {
+    unsigned sign = (i < 0);
+    if (i == 0) return 0;
+    if (sign) {
+        if (i == INT_MIN) return (1u << 31) | (158u << 23) | 0;
+        i = -i;
+    }
+
+    unsigned e = 0;
+    unsigned temp = (unsigned) i;
+    while (temp > 1) {temp >>= 1; e++;}
+
+
+    unsigned stripped = i ^ (1 << e); // remove the implicit leading 1
+    unsigned exp = e + 127;
+    unsigned frac;
+
+    if (e <= 23) {
+        frac = stripped << (23 - e); // shift up
+    } else {
+        // round to even
+        unsigned shift = e - 23;
+        unsigned guard = (stripped >> (shift - 1)) & 1;
+        unsigned sticky = stripped & ((1 << (shift - 1)) - 1) ? 1 : 0;
+        frac = stripped >> shift;
+        // round up if guard= 1 AND (sticky = 1 OR frac is odd)
+        // sticky=1 means bits below guard were non-zero, so round up
+        frac += guard & (sticky | (frac & 1));
+
+        if (frac & (1 << 23)) {exp++; frac = 0;}
+    }
+
+    return (sign << 31) | (exp << 23) | frac;
+
+}
 
 
 
